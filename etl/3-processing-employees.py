@@ -36,26 +36,28 @@ context = gx.get_context(context_root_dir=context_root_dir)
 
 # COMMAND ----------
 
-from pyspark.sql.functions import regexp_replace, split, col
+from pyspark.sql.functions import regexp_replace, split, col, upper
 
 # COMMAND ----------
 
 # lendo arquivos
-bank_df = spark.read.parquet('dbfs:/pece-poli-de/bronze/banks/')
+employee_df = spark.read.parquet('dbfs:/pece-poli-de/bronze/employees/')
 
 # COMMAND ----------
 
 # Colocando os dados em cache
-bank_df.cache()
+employee_df.cache()
 
 # COMMAND ----------
 
-# Data Transformation for bank dataset
-for column in bank_df.columns:
-    bank_df = bank_df.withColumnRenamed(
-        existing=column, 
-        new=column.lower()
+# Data Transformation for employee dataset
+for column in employee_df.columns:
+    employee_df = employee_df.withColumnRenamed(
+        column, 
+        column.replace("-","_").replace(" ","_").lower()
     )
+
+employee_df.cache()
 
 for replacement_action in [
     ("nome", "- PRUDENCIAL", ""),
@@ -64,19 +66,19 @@ for replacement_action in [
     ("nome","SOCIEDADE DE CRÉDITO, FINANCIAMENTO E INVESTIMENTO", "SCFI"),
     ("nome"," SA", ""),
 ]:
-    bank_df = bank_df.withColumn(
+    employee_df = employee_df.withColumn(
         "nome", regexp_replace(
             replacement_action[0],
             replacement_action[1],
             replacement_action[2]
         )
     )
-bank_df = bank_df.withColumn('nome_fantasia', split(col('nome'),'  ').getItem(1))
+employee_df = employee_df.withColumn('employer_name', upper(col('employer_name')))
 
 # COMMAND ----------
 
 # Gravando no diretorio Silver
-bank_df.write.mode("overwrite").parquet("dbfs:/pece-poli-de/silver/banks/")
+employee_df.write.mode("overwrite").parquet("dbfs:/pece-poli-de/silver/employees/")
 
 # COMMAND ----------
 
@@ -100,16 +102,16 @@ def get_data_file_path(dbfs_path):
 
 # Criando o datasource usando um dataframe
 dataframe_datasource = context.sources.add_or_update_spark(
-    name="spark_in_memory_datasource",
+    name="spark_in_memory_datasource_employees",
 )
-ile_path = get_data_file_path('dbfs:/pece-poli-de/silver/banks/')
+file_path = get_data_file_path('dbfs:/pece-poli-de/silver/employees/')
 
 # COMMAND ----------
 
 # Criando o data asset
 df = spark.read.parquet(file_path)
 dataframe_asset = dataframe_datasource.add_dataframe_asset(
-    name="banks_silver",
+    name="employees_silver",
     dataframe=df,
 )
 
@@ -126,7 +128,7 @@ batch_request = dataframe_asset.build_batch_request()
 # COMMAND ----------
 
 # Criando o validador
-expectation_suite_name = "validacao_banks"
+expectation_suite_name = "validacao_emlpoyees"
 context.add_or_update_expectation_suite(expectation_suite_name=expectation_suite_name)
 validator = context.get_validator(
     batch_request=batch_request,
@@ -135,8 +137,11 @@ validator = context.get_validator(
 
 # COMMAND ----------
 
+validator.columns()
+
+# COMMAND ----------
+
 # validação de colunas com valores nulos
-validator.expect_column_values_to_not_be_null(column="nome_fantasia")
 validator.expect_column_values_to_not_be_null(column="segmento")
 validator.expect_column_values_to_not_be_null(column="nome")
 validator.expect_column_values_to_not_be_null(column="cnpj")
@@ -193,4 +198,4 @@ print(checkpoint.get_config().to_yaml_str())
 # COMMAND ----------
 
 # move the report to the data quality bucket
-dbutils.fs.cp('dbfs:/great_expectations/uncommitted/data_docs/local_site','gs://pece-poli-de/data_quality/banks/', True)
+dbutils.fs.cp('dbfs:/great_expectations/uncommitted/data_docs/local_site','gs://pece-poli-de/data_quality/employees/', True)

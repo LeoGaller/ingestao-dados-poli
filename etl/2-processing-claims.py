@@ -41,42 +41,45 @@ from pyspark.sql.functions import regexp_replace, split, col
 # COMMAND ----------
 
 # lendo arquivos
-bank_df = spark.read.parquet('dbfs:/pece-poli-de/bronze/banks/')
+claims_df = spark.read.parquet('dbfs:/pece-poli-de/bronze/claims/')
 
 # COMMAND ----------
 
 # Colocando os dados em cache
-bank_df.cache()
+claims_df.cache()
 
 # COMMAND ----------
 
-# Data Transformation for bank dataset
-for column in bank_df.columns:
-    bank_df = bank_df.withColumnRenamed(
-        existing=column, 
-        new=column.lower()
+# Data Transformation for claims dataset
+for column in claims_df.columns:
+    claims_df = claims_df.withColumnRenamed(
+        column, 
+        column.replace("-","_").replace(" ","_").lower()
     )
+
+claims_df = claims_df.withColumnRenamed('cnpj_if', 'cnpj')\
+    .withColumnRenamed('instituição_financeira', 'nome')
 
 for replacement_action in [
     ("nome", "- PRUDENCIAL", ""),
     ("nome","(\.+|\/+|\-+)", ""),
+    ("nome"," \(conglomerado\)", ""),
     ("nome"," INSTITUIÇÃO DE PAGAMENTO", ""),
     ("nome","SOCIEDADE DE CRÉDITO, FINANCIAMENTO E INVESTIMENTO", "SCFI"),
     ("nome"," SA", ""),
 ]:
-    bank_df = bank_df.withColumn(
+    claims_df = claims_df.withColumn(
         "nome", regexp_replace(
             replacement_action[0],
             replacement_action[1],
             replacement_action[2]
         )
     )
-bank_df = bank_df.withColumn('nome_fantasia', split(col('nome'),'  ').getItem(1))
 
 # COMMAND ----------
 
 # Gravando no diretorio Silver
-bank_df.write.mode("overwrite").parquet("dbfs:/pece-poli-de/silver/banks/")
+claims_df.write.mode("overwrite").parquet("dbfs:/pece-poli-de/silver/claims/")
 
 # COMMAND ----------
 
@@ -100,16 +103,16 @@ def get_data_file_path(dbfs_path):
 
 # Criando o datasource usando um dataframe
 dataframe_datasource = context.sources.add_or_update_spark(
-    name="spark_in_memory_datasource",
+    name="spark_in_memory_datasource_claims",
 )
-ile_path = get_data_file_path('dbfs:/pece-poli-de/silver/banks/')
+file_path = get_data_file_path('dbfs:/pece-poli-de/silver/claims/')
 
 # COMMAND ----------
 
 # Criando o data asset
 df = spark.read.parquet(file_path)
 dataframe_asset = dataframe_datasource.add_dataframe_asset(
-    name="banks_silver",
+    name="claims_silver",
     dataframe=df,
 )
 
@@ -126,7 +129,7 @@ batch_request = dataframe_asset.build_batch_request()
 # COMMAND ----------
 
 # Criando o validador
-expectation_suite_name = "validacao_banks"
+expectation_suite_name = "validacao_claims"
 context.add_or_update_expectation_suite(expectation_suite_name=expectation_suite_name)
 validator = context.get_validator(
     batch_request=batch_request,
@@ -135,11 +138,17 @@ validator = context.get_validator(
 
 # COMMAND ----------
 
+validator.columns()
+
+# COMMAND ----------
+
 # validação de colunas com valores nulos
-validator.expect_column_values_to_not_be_null(column="nome_fantasia")
-validator.expect_column_values_to_not_be_null(column="segmento")
+validator.expect_column_values_to_not_be_null(column="categoria")
 validator.expect_column_values_to_not_be_null(column="nome")
 validator.expect_column_values_to_not_be_null(column="cnpj")
+validator.expect_column_values_to_not_be_null(column="índice")
+validator.expect_column_values_to_not_be_null(column="quantidade_de_reclamações_reguladas_procedentes")
+validator.expect_column_values_to_not_be_null(column="quantidade_de_clientes_–_scr")
 
 # validator.expect_column_values_to_be_between(
 #     column="congestion_surcharge", min_value=0, max_value=1000
@@ -193,4 +202,4 @@ print(checkpoint.get_config().to_yaml_str())
 # COMMAND ----------
 
 # move the report to the data quality bucket
-dbutils.fs.cp('dbfs:/great_expectations/uncommitted/data_docs/local_site','gs://pece-poli-de/data_quality/banks/', True)
+dbutils.fs.cp('dbfs:/great_expectations/uncommitted/data_docs/local_site','gs://pece-poli-de/data_quality/claims/', True)

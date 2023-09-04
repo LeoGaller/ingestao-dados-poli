@@ -1,6 +1,6 @@
 # Databricks notebook source
-# Verificando acessos
-dbutils.fs.ls("gs://pece-poli-de")
+# MAGIC %md
+# MAGIC ### Copying files from bucket to DBFS
 
 # COMMAND ----------
 
