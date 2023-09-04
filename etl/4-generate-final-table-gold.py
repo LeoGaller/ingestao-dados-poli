@@ -97,4 +97,5 @@ final_df.write.mode("overwrite").parquet("dbfs:/pece-poli-de/gold/tabela_final")
 
 # COMMAND ----------
 
-final_df.count()
+# movendo o arquivo para o bucket gold para ficar acessivel
+dbutils.fs.cp("dbfs:/pece-poli-de/gold/tabela_final","gs://pece-poli-de/gold/", True)
