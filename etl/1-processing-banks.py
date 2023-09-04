@@ -102,7 +102,7 @@ def get_data_file_path(dbfs_path):
 dataframe_datasource = context.sources.add_or_update_spark(
     name="spark_in_memory_datasource",
 )
-ile_path = get_data_file_path('dbfs:/pece-poli-de/silver/banks/')
+file_path = get_data_file_path('dbfs:/pece-poli-de/silver/banks/')
 
 # COMMAND ----------
 
@@ -194,3 +194,8 @@ print(checkpoint.get_config().to_yaml_str())
 
 # move the report to the data quality bucket
 dbutils.fs.cp('dbfs:/great_expectations/uncommitted/data_docs/local_site','gs://pece-poli-de/data_quality/banks/', True)
+
+# COMMAND ----------
+
+import time
+time.sleep(9)
