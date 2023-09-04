@@ -203,3 +203,8 @@ print(checkpoint.get_config().to_yaml_str())
 
 # move the report to the data quality bucket
 dbutils.fs.cp('dbfs:/great_expectations/uncommitted/data_docs/local_site','gs://pece-poli-de/data_quality/claims/', True)
+
+# COMMAND ----------
+
+import time
+time.sleep(6)

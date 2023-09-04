@@ -65,6 +65,8 @@ for replacement_action in [
     ("nome"," INSTITUIÇÃO DE PAGAMENTO", ""),
     ("nome","SOCIEDADE DE CRÉDITO, FINANCIAMENTO E INVESTIMENTO", "SCFI"),
     ("nome"," SA", ""),
+    ("nome"," DEUTSCHE", "DEUTSCHE BANK  BANCO ALEMAO"),
+    ("nome"," BANCO SUMITOMO MITSUI BRASIL", "BANCO SUMITOMO MITSUI BRASILEIRO")
 ]:
     employee_df = employee_df.withColumn(
         "nome", regexp_replace(
@@ -199,3 +201,8 @@ print(checkpoint.get_config().to_yaml_str())
 
 # move the report to the data quality bucket
 dbutils.fs.cp('dbfs:/great_expectations/uncommitted/data_docs/local_site','gs://pece-poli-de/data_quality/employees/', True)
+
+# COMMAND ----------
+
+import time
+time.sleep(3)
